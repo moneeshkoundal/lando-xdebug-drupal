@@ -12,7 +12,7 @@
     "require": {
         "php": ">=8.1",
         "acquia/acquia-cms-starterkit": "^1",
-        "acquia/blt": "*",
+        "acquia/blt": "^13.7",
         "acquia/drupal-environment-detector": "^1",
         "acquia/memcache-settings": "^1",
         "composer/installers": "^2.1",

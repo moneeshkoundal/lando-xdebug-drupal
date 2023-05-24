@@ -1,2 +1,23 @@
 project:
   machine_name: lando-xdebug-drupal
+  prefix: lando-xdebug-drupal
+  profile:
+    name: standard
+  local:
+    protocol: https
+    hostname: 'lando-xdebug-drupal.lndo.site'
+
+drupal:
+  account:
+    name: admin
+    pass: admin
+    mail: no-reply@example.com
+  db:
+    database: drupal10
+    username: drupal10
+    password: drupal10
+    host: database
+    port: 3306
+
+cm:
+  strategy: none

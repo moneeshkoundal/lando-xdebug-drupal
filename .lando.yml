@@ -2,3 +2,70 @@ name: lando-xdebug-drupal
 recipe: drupal10
 config:
   webroot: docroot
+  php: '8.1'
+services:
+  database:
+    app_mount: disabled
+    type: mariadb
+  appserver:
+    xdebug: true
+    app_mount: delegated
+    config:
+      php: .lando/php.ini
+    build_as_root:
+      - apt-get update
+      - apt-get install libxss1
+      - bash /app/.lando/scripts/configure-syslog.sh
+      - bash /app/.lando/scripts/configure-xhprof.sh
+      - rm -f /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && /etc/init.d/apache2 reload
+    overrides:
+      # Pass SSH keys.
+      volumes:
+        - type: bind
+          # Linux user: add 'export LANDO_SSH_AUTH_SOCK="${SSH_AUTH_SOCK}"' at the end of your ~/.bashrc:
+          # Mac user: MacOS specific path is here as the variable default value, nothing to do.
+          source: "${LANDO_SSH_AUTH_SOCK:-/run/host-services/ssh-auth.sock}"
+          target: /run/host-services/ssh-auth.sock
+      environment:
+        PHP_IDE_CONFIG: "serverName=appserver"
+        DRUSH_OPTIONS_URI: "https://lando-xdebug-drupal.lndo.site/"
+        SSH_AUTH_SOCK: /run/host-services/ssh-auth.sock
+        XDEBUG_MODE:
+      cap_add:
+        - SYS_ADMIN
+tooling:
+  blt:
+    service: appserver
+    cmd: /app/vendor/bin/blt
+  xdebug-on:
+    service: appserver
+    description: Enable xdebug for apache.
+    cmd:
+      # Remove existing config as a convenience (otherwise you have to run xdebug-off first to remove bad config)
+      - rm -f /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+      - docker-php-ext-enable xdebug
+      - /etc/init.d/apache2 reload
+      - echo "Xdebug enabled."
+    user: root
+  xdebug-off:
+    service: appserver
+    description: Disable xdebug for apache.
+    cmd:
+      - rm -f /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+      - /etc/init.d/apache2 reload
+      - echo "Xdebug disabled."
+    user: root
+  ssh-fix:
+    service: appserver
+    description: Fix ssh auth sock permission for MacOS users. Lando rebuild fixes the problem as well.
+    cmd: "/bin/chgrp www-data /run/host-services/ssh-auth.sock && /bin/chmod g+w /run/host-services/ssh-auth.sock"
+    user: root
+  logs-drupal:
+    service: appserver
+    description: Displays and tails Drupal logs using syslog module (because drush wd-show no longer supports tail)
+    cmd:
+      - /app/.lando/scripts/logs-drupal.sh
+    user: root
+events:
+  post-start:
+    - appserver: test -e ~/.ssh/config || printf 'Host *\n  AddKeysToAgent yes\n' > ~/.ssh/config
